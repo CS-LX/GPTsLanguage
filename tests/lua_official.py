@@ -16,10 +16,10 @@ with tempfile.TemporaryDirectory() as work:
     play.mkdir()
     entry = source / "gpt-suite-entry.lua"
     entry.write_text('_U = true\ndofile("all.lua")\n', encoding="utf-8")
-    for dll in ("lua54.dll", "gptlua54.dll"):
+    for dll in ("lua54.dll", "gptcompat.dll"):
         shutil.copy2(bin_dir / dll, play)
     exe = play / "suite.exe"
-    subprocess.run([bin_dir / "gptc.exe", "compile", entry, "--root", source, "-o", exe], check=True)
+    subprocess.run([bin_dir / "gptc.exe", "compile", entry, "--runtime", "lua", "--root", source, "-o", exe], check=True)
     # Remove the input tree so the interpreter cannot reach the original sources.
     shutil.rmtree(source)
     env = {k: v for k, v in os.environ.items() if not k.startswith(("LUA_PATH", "LUA_CPATH", "LUA_INIT"))}

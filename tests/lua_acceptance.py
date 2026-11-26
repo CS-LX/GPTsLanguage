@@ -34,7 +34,8 @@ def game(play):
         _, parts = pe_layout(data)
         a, n = parts[".gptil"]
         prose = data[a:a+n]
-        assert parts[".text"][1] == 24 and n / len(data) > .94
+        assert parts[".text"][1] == (24 if ext == "exe" else 48) and n / len(data) > .85
+        assert b"operand ledger" not in prose and b"register" not in prose
         assert b"\x1bLua" not in data and b"local function game()" not in data
         assert " · ".encode() in prose and " — ".encode() in prose
         listing = run(C, "inspect", file, cwd=play)
@@ -55,17 +56,17 @@ def game(play):
     source = ROOT / "examples" / "tic-tac-toing"
     stock = run(HOST, "tic-tac-toing.lua", "-p1=Ada", cwd=source, stdin=inputs)
     assert stock == out
-    # Stop counting moves by changing only the immediate operand of the
-    # increment. The five moves are accepted, but never reach the win check.
-    counter = "increase the register value by a signed immediate. For transparency, the operand ledger reads A 3 · B 3 · C 128".encode()
+    # Change one natural-language comparison of progress. Counting down
+    # keeps the same five moves below the game's win-check threshold.
+    counter = "one more for your count of “moves”".encode()
     assert prose.count(counter) == 1
     changed = play / "alternate.exe"
-    changed.write_bytes(data.replace(counter, counter[:-3] + b"127"))
+    changed.write_bytes(data.replace(counter, counter.replace(b"one more", b"one less")))
     out = run(changed, cwd=play, stdin=WIN)
     assert "WON!" not in out and "player2 move: end" in out
     assert "player1 WON!" in run(exe, cwd=play, stdin=WIN)
     instructions = prose.count(b"\n\n")
-    print(f"Game verified: {len(prose):,} prose bytes / {len(data):,} EXE bytes; {instructions} instructions.")
+    print(f"Game verified: {len(prose):,} prose bytes / {len(data):,} EXE bytes; {instructions} paragraphs.")
 
 
 def libraries(base, play):
@@ -113,12 +114,12 @@ __declspec(dllexport) int luaopen_native(lua_State *L) {
     assert "duplicate bundled" in run(*args, cwd=play, ok=False) and dll.read_bytes() == original
     call = 'package.path="external-only/?.lua"; print(require("calc")(9,4))'
     assert run(HOST, "-e", call, cwd=play) == "13\n"
-    verb = b"increase the left operand by the right operand"
+    verb = b"I'd increase "
     assert original.count(verb) == 1
     dll.write_bytes(original.replace(verb, verb.replace(b"increase", b"decrease")))
     assert run(HOST, "-e", call, cwd=play) == "5\n"
     dll.write_bytes(original.replace(verb, verb.replace(b"increase", b"xxxxxxxx")))
-    assert "unrecognized GPT action" in run(HOST, "-e", call, cwd=play, ok=False)
+    assert "unrecognized feedback" in run(HOST, "-e", call, cwd=play, ok=False)
     probe = src / "argv.lua"
     probe.write_text("local a,b=...; assert(arg[1]==a and arg[2]==b); print(a,b); os.exit(0,true)")
     run(C, "compile", probe, "-o", play/"argv.exe", cwd=play)
@@ -130,7 +131,7 @@ with tempfile.TemporaryDirectory() as tmp:
     base = Path(tmp)
     play = base / "bin"
     play.mkdir()
-    for runtime in ("gptlua54.dll", "lua54.dll"):
+    for runtime in ("gptlua54.dll", "lua54.dll", "gptcompat.dll"):
         shutil.copy2(BIN / runtime, play)
     game(play)
     libraries(base, play)

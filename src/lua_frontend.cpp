@@ -52,13 +52,14 @@ Chunk compile_chunk(lua_State *L, const std::string &name, const fs::path &path)
 }
 } // namespace
 Bytes compile_project(const fs::path &entry, const fs::path &source_root,
-                      const std::vector<fs::path> &module_roots, std::string symbol, bool exe) {
+                      const std::vector<fs::path> &module_roots, std::string symbol, bool exe, bool host) {
     auto main = fs::canonical(entry);
     auto root = source_root.empty() ? main.parent_path() : fs::canonical(source_root);
     auto relative = fs::relative(main, root);
     if (relative.empty() || *relative.begin() == ".." || relative.is_absolute())
         fail("Lua entry must be inside the project root");
     Package p;
+    p.host=host;
     p.entry = utf8(relative);
     p.symbol = std::move(symbol);
     if (!identifier(p.symbol))
@@ -82,10 +83,11 @@ Bytes compile_project(const fs::path &entry, const fs::path &source_root,
     std::unique_ptr<lua_State, decltype(&lua_close)> state(luaL_newstate(), lua_close);
     if (!state)
         fail("could not initialize Lua compiler");
+    p.chunks.push_back(compile_chunk(state.get(),p.entry,main));
     for (const auto &[name, path] : files)
-        p.chunks.push_back(compile_chunk(state.get(), name, path));
+        if(name!=p.entry)p.chunks.push_back(compile_chunk(state.get(), name, path));
     auto image =
-        emit_image(exports(p.symbol), encode_package(p), exe ? PeProfile::lua_exe : PeProfile::lua_dll);
+        emit_image(exports(p,exe), encode_package(p), lua_profile(exe, host));
     auto restored = read_image(image, false);
     if (restored.chunks.size() != p.chunks.size() || restored.entry != p.entry ||
         restored.symbol != p.symbol)

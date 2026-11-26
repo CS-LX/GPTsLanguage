@@ -141,7 +141,7 @@ Bytes emit_image(const Module &m, Payload payload, PeProfile profile) {
     fh.NumberOfSections = static_cast<WORD>(layout.sections.size());
     fh.SizeOfOptionalHeader = sizeof(IMAGE_OPTIONAL_HEADER64);
     fh.Characteristics = IMAGE_FILE_EXECUTABLE_IMAGE | IMAGE_FILE_LARGE_ADDRESS_AWARE;
-    if (profile != PeProfile::lua_exe) fh.Characteristics |= IMAGE_FILE_DLL;
+    if (!executable(profile)) fh.Characteristics |= IMAGE_FILE_DLL;
     auto &opt = nt.OptionalHeader;
     opt.Magic = IMAGE_NT_OPTIONAL_HDR64_MAGIC;
     opt.MajorLinkerVersion = 1;
@@ -152,7 +152,7 @@ Bytes emit_image(const Module &m, Payload payload, PeProfile profile) {
     opt.MajorSubsystemVersion = 6;
     opt.SizeOfImage = layout.next;
     opt.BaseOfCode = code;
-    if (profile == PeProfile::lua_exe) opt.AddressOfEntryPoint = code;
+    if (executable(profile)) opt.AddressOfEntryPoint = code;
     opt.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_CUI;
     opt.DllCharacteristics = IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE |
                              IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA |

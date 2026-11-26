@@ -8,8 +8,8 @@ GPT 语双人井字棋  |  Windows x64
 在终端执行 TicTacToing.exe -p1=Ada -p2=Lin 可以给玩家起名。
 TicTacToing.exe --help 列出棋盘大小、棋子及显示字符等选项。
 
-移动游戏时请一起复制本目录中的 gptlua54.dll 和 lua54.dll。游戏 EXE 自带所有游戏逻辑。
-TicTacToing.dll 是同一游戏的 Lua 模块版，导出 luaopen_TicTacToing。
+移动游戏时请一起复制本目录中的 gptlua54.dll。这是直接执行英文反馈的独立 C++ 运行时。
+游戏 EXE 自带所有游戏逻辑。TicTacToing.dll 的原生入口是 gpt_run。
 在十六进制编辑器里打开 EXE 或游戏 DLL，跳到 0x600，即可看到第一段英文指令。
 
 原作 la-zu-li/tic-tac-toing，MIT 许可证。版权信息见 LICENSE-game.txt 和 LICENSE-Lua.txt。

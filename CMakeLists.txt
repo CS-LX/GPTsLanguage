@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(GPTAssembly VERSION 1.0 LANGUAGES C CXX)
+project(GPTAssembly VERSION 2.0.0 LANGUAGES C CXX)
 
 if(NOT MINGW OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "This build targets Windows x64 with MinGW-w64.")
@@ -30,13 +30,18 @@ target_compile_definitions(lua54 PUBLIC LUA_BUILD_AS_DLL)
 target_link_options(lua54 PRIVATE -static-libgcc)
 set_target_properties(lua54 PROPERTIES PREFIX "")
 
-add_library(lua_prose STATIC src/lua_prose.cpp src/lua_package.cpp)
+add_library(lua_prose STATIC src/lua_prose.cpp src/lua_package.cpp src/feedback.cpp)
 target_include_directories(lua_prose PRIVATE "${lua_dir}")
 target_link_libraries(lua_prose PUBLIC assembly)
 target_compile_options(lua_prose PRIVATE -Wall -Wextra -Wpedantic -fexec-charset=UTF-8)
-add_library(gptlua54 SHARED src/lua_runtime.cpp)
+add_library(gptcompat SHARED src/lua_runtime.cpp)
+set_target_properties(gptcompat PROPERTIES PREFIX "")
+target_link_libraries(gptcompat PRIVATE lua_prose lua54 shell32 psapi)
+target_link_options(gptcompat PRIVATE -static)
+add_library(gptlua54 SHARED src/prose_host.cpp src/prose_vm.cpp src/prose_library.cpp)
+target_include_directories(gptlua54 PRIVATE "${lua_dir}")
 set_target_properties(gptlua54 PROPERTIES PREFIX "")
-target_link_libraries(gptlua54 PRIVATE lua_prose lua54 shell32 psapi)
+target_link_libraries(gptlua54 PRIVATE lua_prose shell32 psapi)
 target_link_options(gptlua54 PRIVATE -static)
 add_executable(lua-host "${lua_dir}/lua.c")
 target_link_libraries(lua-host PRIVATE lua54)
@@ -73,7 +78,9 @@ install(TARGETS gptc sample-host gptrt RUNTIME DESTINATION .)
 install(FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sample.dll"
               "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/caveats.dll" DESTINATION .)
 install(FILES "${lua_dir}/LICENSE.txt" DESTINATION . RENAME LICENSE-Lua.txt)
-install(FILES "$<TARGET_FILE:gptlua54>" "$<TARGET_FILE:lua54>"
+install(FILES "$<TARGET_FILE:lua54>" "$<TARGET_FILE:gptcompat>" DESTINATION LuaHost)
+install(FILES "${lua_dir}/LICENSE.txt" DESTINATION LuaHost RENAME LICENSE-Lua.txt)
+install(FILES "$<TARGET_FILE:gptlua54>"
               "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/TicTacToing.exe"
               "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/TicTacToing.dll"
               "${game_root}/PLAY.txt" DESTINATION TicTacToing)
@@ -87,6 +94,9 @@ if(BUILD_TESTING)
     add_test(NAME lua_opcodes COMMAND lua-opcodes-test)
     find_package(Python3 COMPONENTS Interpreter QUIET)
     if(Python3_Interpreter_FOUND)
+        add_test(NAME independent_vm COMMAND "${Python3_EXECUTABLE}" -B
+                 "${CMAKE_CURRENT_SOURCE_DIR}/tests/independent_vm.py" "$<TARGET_FILE_DIR:gptc>")
+        set_tests_properties(independent_vm PROPERTIES TIMEOUT 60)
         set(GPT_LUA_TEST_SUITE "" CACHE PATH "Extracted upstream lua-5.4.9-tests directory")
         if(GPT_LUA_TEST_SUITE)
             add_test(NAME lua_official_basic

@@ -2,13 +2,13 @@
 
 ## 直接玩一局 GPT 井字棋
 
-从 [GitHub Releases 下载 Windows x64 压缩包](https://github.com/CS-LX/GPTsLanguage/releases/latest/download/GPTsLanguage-windows-x64.zip)，解压后打开 `TicTacToing/TicTacToing.exe`。压缩包根目录里的 `gptc.exe` 可以编译自己的程序。
+下载并完整解压 [v2.0.0 Windows x64 主包](https://github.com/CS-LX/GPTsLanguage/releases/download/v2.0.0/GPTsLanguage-windows-x64.zip)，双击 `TicTacToing\TicTacToing.exe`，按 Enter 开始。两个人轮流输入行、英文逗号和列，例如 `1,2`。同目录的 `gptlua54.dll` 是项目自己的 C++ 虚拟机，移动游戏时请一起复制。
 
-双击 [TicTacToing.exe](dist/TicTacToing/TicTacToing.exe)，按 Enter，然后两个人轮流输入行、英文逗号和列，例如 `1,2`。移动游戏时一起复制旁边的两个运行时 DLL。
+用十六进制编辑器打开同一个 EXE，跳到 `0x600`，就能读到它解释的英文反馈。四份 Lua 源码里的 1,110 项操作合成了 329 段。把落子计数那句里的 `one more` 改成等长的 `one less`，落子数就会倒着走，原本获胜的第五步也会继续请对手下棋。[游戏 DLL](dist/TicTacToing/TicTacToing.dll) 有相同的正文，并提供 Windows 原生导出 `gpt_run`。
 
-用十六进制编辑器打开同一个 EXE，跳到 `0x600` 就能读到游戏的第一条指令。四份 Lua 源码编成了 1,110 段英文，占 EXE 的 95.9%。[游戏 DLL](dist/TicTacToing/TicTacToing.dll) 也含有相同的正文，可作为普通 Lua 5.4 原生模块加载。
+主包根目录的 `gptc.exe` 可以把自己的 Lua 程序编译成 EXE 或 DLL，例如 `gptc compile main.lua -o app.exe`。把生成的程序和 `gptlua54.dll` 放在同一目录即可运行。依赖完整 Lua 标准库或 Lua C 扩展的项目可以用 `--runtime lua` 编译，并把兼容包内的两个 DLL 放在生成的程序旁。[可选 Lua 兼容包](https://github.com/CS-LX/GPTsLanguage/releases/download/v2.0.0/GPTsLanguage-lua-host-windows-x64.zip) · [编译命令、文法和支持范围](docs/independent-vm.md) · [游戏原作](https://github.com/la-zu-li/tic-tac-toing/tree/528eb90f4d7dec6ce463c8c2626fefdd1b9fd6fc)
 
-现在用 `gptc compile main.lua -o app.exe` 或 `-o mymodule.dll` 就能编译 Lua 5.4.9。C++ 编译器接入官方前端，覆盖 83 种 VM 指令，可打包多文件项目与纯 Lua 依赖，也能调用已有的 x64 Lua 5.4 原生扩展。[编译命令、格式和兼容范围](docs/lua54.md) · [游戏原作](https://github.com/la-zu-li/tic-tac-toing/tree/528eb90f4d7dec6ce463c8c2626fefdd1b9fd6fc)
+此前发布的 [v1.0.0 Windows 版](https://github.com/CS-LX/GPTsLanguage/releases/tag/v1.0.0) 使用第一版英语文法。要用独立 VM 玩那一份，保留原版 EXE，换上本目录的新版 `gptlua54.dll` 即可。
 
 ## C/C++ 整数子集
 

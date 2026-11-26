@@ -127,7 +127,7 @@ class Image {
         return slice(bytes_, s.offset, s.size);
     }
     void validate_bridges(const Module &m, PeProfile profile) const {
-        if (is_exe != (profile == PeProfile::lua_exe) ||
+        if (is_exe != executable(profile) ||
             opt.AddressOfEntryPoint != (is_exe ? section(".text").rva : 0) ||
             opt.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress)
             fail("unexpected native initialization in GPT module");
