@@ -77,13 +77,19 @@ Module decode(Sections sections, std::vector<std::string_view> *bodies = nullptr
 Module read_dll(View image, bool mapped, std::vector<std::string_view> *bodies = nullptr);
 Module compile(std::string_view source);
 Bytes emit_dll(const Module &module);
-enum class PeProfile { integer_dll, lua_dll, lua_exe };
+enum class PeProfile { integer_dll, lua_dll, lua_exe, host_dll, host_exe };
+inline bool executable(PeProfile p) { return p == PeProfile::lua_exe || p == PeProfile::host_exe; }
+inline PeProfile lua_profile(bool exe, bool host) {
+    if (host) return exe ? PeProfile::host_exe : PeProfile::host_dll;
+    return exe ? PeProfile::lua_exe : PeProfile::lua_dll;
+}
 inline std::string_view runtime_library(PeProfile profile) {
+    if (profile == PeProfile::host_exe || profile == PeProfile::host_dll) return "gptcompat.dll";
     return profile == PeProfile::integer_dll ? "gptrt.dll" : "gptlua54.dll";
 }
 inline std::string_view runtime_entry(PeProfile profile) {
-    if (profile == PeProfile::lua_exe) return "gpt_lua_start";
-    if (profile == PeProfile::lua_dll) return "gpt_lua_module";
+    if (executable(profile)) return "gpt_lua_start";
+    if (profile != PeProfile::integer_dll) return "gpt_lua_module";
     return "gpt_dispatch";
 }
 Bytes emit_image(const Module &exports, Payload payload, PeProfile profile);

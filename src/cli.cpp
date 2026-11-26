@@ -101,12 +101,18 @@ int command(int argc, wchar_t **argv) {
         fs::path output, root;
         std::vector<fs::path> module_roots;
         std::string symbol;
+        bool host=false;
         for (int i = 3; i < argc; i += 2) {
             if (i + 1 >= argc) fail("missing compiler option value");
             std::wstring_view option = argv[i];
             if (option == L"-o") output = argv[i + 1];
             else if (option == L"--root") root = argv[i + 1];
             else if (option == L"--modules") module_roots.emplace_back(argv[i + 1]);
+            else if (option == L"--runtime") {
+                std::wstring_view runtime=argv[i+1];
+                if(runtime!=L"lua" && runtime!=L"gpt") fail("expected --runtime gpt or lua");
+                host=runtime==L"lua";
+            }
             else if (option == L"--symbol") symbol = ascii(argv[i + 1]);
             else fail("unknown Lua compiler option");
         }
@@ -119,7 +125,7 @@ int command(int argc, wchar_t **argv) {
             for (auto &ch : stem) if (ch == L'.') ch = L'_';
             symbol = "luaopen_" + ascii(stem);
         }
-        auto image = lua54::compile_project(argv[2], root, module_roots, symbol, exe);
+        auto image = lua54::compile_project(argv[2], root, module_roots, symbol, exe, host);
         save(output, image);
         std::cout << "Wrote GPT Lua 5.4 (" << image.size() << " bytes, verified against Lua 5.4.9)\n";
         return 0;
@@ -151,10 +157,11 @@ int command(int argc, wchar_t **argv) {
         if (meta.size() >= lua54::signature.size() &&
             std::equal(lua54::signature.begin(), lua54::signature.end(), meta.begin())) {
             auto p = lua54::read_image(image, false);
-            std::cout << "GPT Lua 5.4 | English grammar v1 | Windows x64 " << (exe ? "EXE" : "DLL")
-                      << " | entry " << p.entry << " | export " << p.symbol << "\n";
+            std::cout << "GPT Lua 5.4 | English grammar v" << p.grammar << " | " << (p.host?"Lua compatibility":"GPT VM") << " | Windows x64 " << (exe ? "EXE" : "DLL")
+                      << " | entry " << p.entry << " | export " << p.symbol
+                      << ((!exe && !p.host && p.grammar>=2)?" + gpt_run":"") << "\n";
             for (const auto &c : p.chunks)
-                std::cout << c.path << " | " << c.functions << " functions | " << c.paragraphs << " paragraphs\n";
+                std::cout << c.path << " | " << c.functions << " functions | " << c.operations << " operations\n";
             std::cout << "\n";
             std::cout.write(reinterpret_cast<const char*>(sections.prose.data()),sections.prose.size());
             return 0;
@@ -189,7 +196,7 @@ int command(int argc, wchar_t **argv) {
     }
     std::cerr
         << "gptc compile SOURCE -o MODULE.dll\ngptc inspect MODULE.dll\ngptc run MODULE.dll NAME A B\n"
-        << "gptc trace MODULE.dll NAME A B\ngptc compile ENTRY.lua [--root PROJECT] [--modules DIR ...] [--symbol luaopen_NAME] -o OUTPUT.dll|OUTPUT.exe\n";
+        << "gptc trace MODULE.dll NAME A B\ngptc compile ENTRY.lua [--root PROJECT] [--modules DIR ...] [--runtime gpt|lua] [--symbol luaopen_NAME] -o OUTPUT.dll|OUTPUT.exe\n";
     return 2;
 }
 } // namespace
